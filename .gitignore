@@ -1,0 +1,30 @@
+# Node / npm
+node_modules/
+npm-debug.log*
+pnpm-lock.yaml
+yarn.lock
+
+# Env files
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# OS/editor
+.DS_Store
+.vscode/
+
+# SQLite data
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+data/*-journal
+
+# Coverage / build cache
+coverage/
+dist/
+build/
+*.tsbuildinfo

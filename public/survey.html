@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Memnuniyet Anketi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b1f3a;            /* navy */
+      --bg-soft:#0e2b58;       /* navy deeper */
+      --card:#0f274b;          /* navy card */
+      --border:#173a6b;        /* navy border */
+      --text:#e6edf6;          /* light text */
+      --muted:#a8b3c7;         /* muted text */
+      --btn:#1a3b6b;           /* btn base */
+      --btn-hover:#224b86;     /* btn hover */
+      --btn-selected:#ff8a3d22;/* selected tint */
+      --primary:#f97316;       /* orange */
+      --primary-hover:#ea580c; /* orange hover */
+      --badge-bg:#0b1f3a;      /* badge bg */
+      --badge-border:#173a6b;
+    }
+    body { font-family: Inter, system-ui, -apple-system, Arial, sans-serif; margin: 0; background:var(--bg); color:var(--text); }
+    .container { max-width: 820px; margin: 0 auto; padding: 24px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
+    h1 { font-size:24px; margin:0 0 8px; }
+    p.muted { color:var(--muted); margin-top:0; }
+    .score { display:flex; gap:10px; flex-wrap: wrap; }
+    .btn { background:var(--btn); color:var(--text); border:1px solid var(--border); border-radius:12px; padding:10px 14px; cursor:pointer; font-size:16px; transition: all .15s ease; }
+    .btn:hover { background:var(--btn-hover); transform: translateY(-1px); }
+    .btn.selected { outline:2px solid var(--primary); background: linear-gradient(0deg, var(--btn-selected), var(--btn-selected)), var(--btn); border-color: var(--primary); }
+    .btn.primary { background:var(--primary); border-color:var(--primary); color:#0b0f14; font-weight:600; }
+    .btn.primary:hover { background:var(--primary-hover); border-color:var(--primary-hover); }
+    .hidden { display:none; }
+    textarea { width: 100%; min-height: 110px; border-radius: 12px; border:1px solid var(--border); background:var(--bg-soft); color:var(--text); padding:12px; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    .row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-soft); }
+    .row .choices { display:flex; gap:8px; flex-wrap:wrap; }
+    .footer { color:var(--muted); font-size:12px; margin-top:16px; }
+    .badge { display:inline-block; padding:6px 10px; border-radius:999px; background:var(--badge-bg); border:1px solid var(--badge-border); color:var(--text); font-size:12px; }
+    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <h1 id="brand">Memnuniyet Anketi</h1>
+        <span class="badge">Anket Kodu: <span id="sid"></span></span>
+      </div>
+      <p class="muted" id="meta"></p>
+
+      <div id="step1">
+        <p class="muted">Genel deneyiminizi 1-10 arasında puanlar mısınız?</p>
+        <div class="score" id="scoreBtns"></div>
+      </div>
+
+      <div id="step2" class="hidden">
+  <p class="muted" id="highNote" style="display:none;">Teşekkürler. Google yorumuyla bize destek olabilir misiniz?</p>
+  <p class="muted" id="catsTitle">Aşağıdaki başlıkları 1-5 arasında puanlar mısınız? (Opsiyonel)</p>
+        <div class="grid" id="cats"></div>
+
+        <div style="margin-top:16px;">
+          <p class="muted">Bizi tavsiye eder misiniz? (0-10)</p>
+          <div class="score" id="tavBtns"></div>
+        </div>
+
+        <p class="muted" style="margin-top:16px;">Yorumunuzu bizimle paylaşmak ister misiniz? (Opsiyonel)</p>
+        <textarea id="comment" placeholder="Kısa bir yorum yazabilirsiniz"></textarea>
+  <div style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap;">
+          <button id="saveComment" class="btn">Gönder</button>
+          <a class="btn primary hidden" id="googleBtn" target="_blank" rel="noopener noreferrer">Google'da Yorum Yap</a>
+        </div>
+        <p class="muted" id="lowNote" style="margin-top:8px; display:none;">Geri bildiriminiz için teşekkür ederiz. İsterseniz sizi arayarak destek olabiliriz.</p>
+      </div>
+
+      <div class="footer" id="footer"></div>
+    </div>
+  </div>
+
+  <script>
+    const surveyId = location.pathname.split('/').pop();
+    document.getElementById('sid').textContent = surveyId;
+
+    function post(path, body) {
+      return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(r => { if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
+    }
+
+    function $(id){ return document.getElementById(id); }
+
+    function renderScores(container, range, attr, onClick, selectedVal){
+      container.innerHTML = '';
+      for (let i=range[0]; i<=range[1]; i++) {
+        const b = document.createElement('button');
+        b.className='btn';
+        b.textContent=String(i);
+        b.setAttribute(attr, i);
+        if (typeof selectedVal === 'number' && i === selectedVal) b.classList.add('selected');
+        b.addEventListener('click', () => onClick(i));
+        container.appendChild(b);
+      }
+    }
+
+    function load() {
+      fetch('/api/survey/'+surveyId)
+        .then(r=>r.json())
+        .then(data => {
+          if (data.error) { alert('Anket bulunamadı'); return; }
+          const brand = data.brandName || data.survey.brand_name || 'Memnuniyet Anketi';
+          $('brand').textContent = brand;
+          document.title = brand;
+          const metaText = `${data.survey.patient_name?('Sayın '+data.survey.patient_name+', '):''}${data.survey.department||''}${data.survey.doctor?(' / '+data.survey.doctor):''}`;
+          $('meta').textContent = metaText;
+
+          // Step visibility
+          const score = data.map?.score?.score;
+          if (typeof score === 'number') { $('step1').classList.add('hidden'); $('step2').classList.remove('hidden'); $('footer').textContent = 'Hastaneye Genel Puanınız: '+score; }
+
+          // Google button
+          const g = $('googleBtn');
+          if (data.showGoogle && data.googleUrl) {
+            g.classList.remove('hidden');
+            g.href = data.googleUrl;
+            $('highNote').style.display='block';
+            // Optionally de-emphasize categories for high scorers
+            $('catsTitle').style.display = 'none';
+            $('cats').style.display = 'none';
+            // Auto redirect after N seconds if configured
+            const secs = Number(data.autoRedirectSeconds || 0);
+            if (secs > 0) setTimeout(()=> { post('/api/survey/'+surveyId+'/google-redirect',{}).finally(()=>{ window.location.href = data.googleUrl; }); }, secs*1000);
+            // Finalize on click
+            g.addEventListener('click', ()=> {
+              post('/api/survey/'+surveyId+'/google-click',{}).catch(()=>{});
+              if (data.finalizeOnGoogleClick) post('/api/survey/'+surveyId+'/finalize', { status:'promoted' }).catch(()=>{});
+            }, { once:true });
+          } else {
+            g.classList.add('hidden');
+            $('lowNote').style.display='block';
+          }
+
+          // Build buttons
+          renderScores($('scoreBtns'), [1,10], 'data-score', (v)=> {
+            // immediate visual feedback
+            Array.from($('scoreBtns').children).forEach(btn=>btn.classList.toggle('selected', btn.textContent === String(v)));
+            post('/api/survey/'+surveyId+'/score', { score: v }).then(load).catch(e=>alert(e.message));
+          }, score);
+
+          // Full labels for categories
+          const cats = [ ['Bekleme','bek'], ['Doktor','dr'], ['Ekip','ekp'], ['Banko','bank'], ['Servis','sln'], ['Temizlik','tmz'] ];
+          $('cats').innerHTML = '';
+          cats.forEach(([label,key]) => {
+            const row = document.createElement('div');
+            row.className='row';
+            const s = document.createElement('span'); s.textContent = label; row.appendChild(s);
+            const choices = document.createElement('div'); choices.className='choices';
+            for (let i=1;i<=5;i++) {
+              const b = document.createElement('button'); b.className='btn'; b.textContent=String(i);
+              if (data.map && data.map[key] && Number(data.map[key].score) === i) b.classList.add('selected');
+              b.addEventListener('click', ()=> {
+                // toggle selected for this row
+                Array.from(choices.children).forEach(btn=>btn.classList.toggle('selected', btn.textContent === String(i)));
+                post('/api/survey/'+surveyId+'/category', { key, score: i }).catch(()=>{});
+              });
+              choices.appendChild(b);
+            }
+            row.appendChild(choices);
+            $('cats').appendChild(row);
+          });
+
+          const selectedTav = (data.map && data.map.tav) ? Number(data.map.tav.score) : undefined;
+          renderScores($('tavBtns'), [0,10], 'data-tav', (v)=> {
+            Array.from($('tavBtns').children).forEach(btn=>btn.classList.toggle('selected', btn.textContent === String(v)));
+            post('/api/survey/'+surveyId+'/tav', { score: v }).catch(()=>{});
+          }, selectedTav);
+
+          // comment
+          $('saveComment').onclick = ()=> post('/api/survey/'+surveyId+'/comment', { comment: $('comment').value }).then(()=>alert('Değerli yorumlarınız için teşekkürler.')).catch(e=>alert(e.message));
+        })
+        .catch(err => alert('Hata: '+err.message));
+    }
+
+    load();
+  </script>
+</body>
+</html>
