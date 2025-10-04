@@ -1,58 +1,91 @@
-import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
-import pino from 'pino';
 import pinoHttp from 'pino-http';
+import config, { validateConfig } from './config/index.js';
+import logger from './utils/logger.js';
+import cache from './utils/cache.js';
+import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
+import { apiKeyAuth } from './middlewares/auth.js';
 import publicRoutes from './routes/public.js';
 import apiRoutes from './routes/api.js';
+import adminRoutes from './routes/admin.js';
 import vendorRoutes from './routes/vendor.js';
 
-const app = express();
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+// Validate configuration
+try {
+  validateConfig();
+  logger.info({ env: config.nodeEnv, port: config.port }, 'Configuration validated');
+} catch (error) {
+  logger.fatal({ error: error.message }, 'Configuration validation failed');
+  process.exit(1);
+}
 
-// Configurable CORS
-const allowOrigins = (process.env.CORS_ORIGINS || '*')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
-const corsOptions = allowOrigins.includes('*')
+const app = express();
+
+// CORS configuration
+const corsOptions = config.corsOrigins.includes('*')
   ? { origin: true, credentials: false }
-  : { origin: function(origin, callback){
-      if (!origin || allowOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
-    }
+  : {
+      origin: function (origin, callback) {
+        if (!origin || config.corsOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error('Not allowed by CORS'));
+      }
     };
 
+// Middleware
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(pinoHttp({ logger }));
 
-// Optional API key auth for /api endpoints
-const apiKey = process.env.API_KEY && String(process.env.API_KEY).trim();
-function apiKeyAuth(req, res, next) {
-  if (!apiKey) return next(); // disabled if no key
-  const h = req.get('authorization') || '';
-  const viaAuth = h.toLowerCase().startsWith('bearer ') && h.slice(7).trim() === apiKey;
-  const viaHeader = req.get('x-api-key') && req.get('x-api-key') === apiKey;
-  if (viaAuth || viaHeader) return next();
-  res.status(401).json({ error: 'unauthorized' });
-}
+// Rate limiter for API
+const apiLimiter = rateLimit({
+  windowMs: config.rateLimitWindowMs,
+  max: config.rateLimitMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn({ ip: req.ip, path: req.path }, 'Rate limit exceeded');
+    res.status(429).json({ error: 'Too many requests, please try again later' });
+  }
+});
 
-// Rate limiter for API (configurable)
-const rlWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
-const rlMax = Number(process.env.RATE_LIMIT_MAX || 120);
-const apiLimiter = rateLimit({ windowMs: rlWindowMs, max: rlMax, standardHeaders: true, legacyHeaders: false });
-
+// Routes
 app.use('/', publicRoutes);
+app.use('/', adminRoutes);
 app.use('/api', apiLimiter, apiKeyAuth, apiRoutes);
 app.use('/api', apiLimiter, apiKeyAuth, vendorRoutes);
 
-const port = process.env.PORT || 8080;
-app.listen(port, () => {
-  logger.info(`sms-review-flow listening on http://localhost:${port}`);
+// Error handling
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+// Start cache cleanup
+if (config.enableCache) {
+  cache.startCleanup();
+  logger.info('Cache cleanup started');
+}
+
+// Start server
+const server = app.listen(config.port, () => {
+  logger.info({
+    port: config.port,
+    env: config.nodeEnv,
+    baseUrl: config.baseUrl
+  }, 'SMS Review Flow started');
 });
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    logger.info('Server closed');
+    process.exit(0);
+  });
+});
+
+export default app;

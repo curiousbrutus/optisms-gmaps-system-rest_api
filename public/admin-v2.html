@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Anket Yönetimi - v2.0</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#0b1f3a; --card:#0f274b; --border:#173a6b; --text:#e6edf6;
+      --muted:#a8b3c7; --primary:#f97316; --success:#10b981; --warning:#f59e0b;
+      --danger:#ef4444;
+    }
+    * { box-sizing: border-box; }
+    body{ font-family:Inter,system-ui; margin:0; background:var(--bg); color:var(--text); }
+    .wrap{ max-width:1400px; margin:0 auto; padding:24px; }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:20px; }
+    h1{ margin:0 0 8px; font-size:28px; font-weight:700; }
+    h2{ margin:0 0 16px; font-size:20px; font-weight:600; }
+    .subtitle{ color:var(--muted); font-size:14px; margin-bottom:24px; }
+    .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:end; margin-bottom:16px; }
+    label{ font-size:13px; color:var(--muted); display:block; margin-bottom:4px; font-weight:500; }
+    input,select{ background:#0e2b58; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:10px 12px; font-size:14px; }
+    button{ background:var(--primary); border:none; color:#0b0f14; border-radius:8px; padding:10px 16px; cursor:pointer; font-weight:600; font-size:14px; transition:all .2s; }
+    button:hover{ opacity:0.9; transform:translateY(-1px); }
+    .btn-secondary{ background:#1a3b6b; color:var(--text); }
+    table{ width:100%; border-collapse:collapse; font-size:13px; }
+    th,td{ padding:12px 8px; border-bottom:1px solid var(--border); text-align:left; }
+    th{ color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; }
+    tr:hover{ background:rgba(255,255,255,0.02); }
+    .metrics{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:16px; margin-bottom:24px; }
+    .metric{ background:#0e2b58; border:1px solid var(--border); border-radius:10px; padding:16px; }
+    .metric .label{ font-size:12px; color:var(--muted); margin-bottom:8px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px; }
+    .metric .val{ font-size:28px; font-weight:700; }
+    .metric .val.success{ color:var(--success); }
+    .metric .val.warning{ color:var(--warning); }
+    .metric .val.danger{ color:var(--danger); }
+    .metric .change{ font-size:12px; color:var(--success); margin-top:4px; }
+    .tabs{ display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid var(--border); }
+    .tab{ padding:12px 20px; cursor:pointer; color:var(--muted); font-weight:600; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .2s; }
+    .tab.active{ color:var(--primary); border-bottom-color:var(--primary); }
+    .tab:hover{ color:var(--text); }
+    .tab-content{ display:none; }
+    .tab-content.active{ display:block; }
+    .chart{ height:300px; background:#0e2b58; border-radius:8px; padding:16px; margin-top:16px; }
+    .badge{ display:inline-block; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+    .badge.pending{ background:#f59e0b22; color:#f59e0b; }
+    .badge.completed{ background:#10b98122; color:#10b981; }
+    .badge.promoted{ background:#3b82f622; color:#3b82f6; }
+    .loading{ text-align:center; padding:40px; color:var(--muted); }
+    .empty{ text-align:center; padding:60px; color:var(--muted); }
+    a{ color:var(--primary); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+    @media (max-width:768px){ .metrics{ grid-template-columns:repeat(2,1fr); } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>📊 Anket Yönetim Paneli</h1>
+    <p class="subtitle">SMS Memnuniyet Sistemi v2.0 - Gelişmiş Analitik</p>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('overview')">Genel Bakış</div>
+      <div class="tab" onclick="switchTab('surveys')">Anketler</div>
+      <div class="tab" onclick="switchTab('analytics')">Analitik</div>
+    </div>
+
+    <!-- Overview Tab -->
+    <div id="tab-overview" class="tab-content active">
+      <div class="metrics" id="overview-metrics">
+        <div class="metric">
+          <div class="label">Toplam Anket</div>
+          <div class="val" id="m-total">-</div>
+        </div>
+        <div class="metric">
+          <div class="label">Ortalama Puan</div>
+          <div class="val success" id="m-avg">-</div>
+        </div>
+        <div class="metric">
+          <div class="label">Yüksek Puan Oranı</div>
+          <div class="val warning" id="m-high">-</div>
+        </div>
+        <div class="metric">
+          <div class="label">Google Dönüşüm</div>
+          <div class="val" id="m-conversion">-</div>
+        </div>
+        <div class="metric">
+          <div class="label">Ortalama NPS</div>
+          <div class="val" id="m-nps">-</div>
+        </div>
+        <div class="metric">
+          <div class="label">Tamamlanma Oranı</div>
+          <div class="val" id="m-completion">-</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Son 7 Gün Trend</h2>
+        <div id="trend-chart" class="chart">Grafik yükleniyor...</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+        <div class="card">
+          <h2>En İyi Performans - Bölümler</h2>
+          <table id="dept-performance">
+            <thead><tr><th>Bölüm</th><th>Anket</th><th>Ort. Puan</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h2>En İyi Performans - Doktorlar</h2>
+          <table id="doctor-performance">
+            <thead><tr><th>Doktor</th><th>Anket</th><th>Ort. Puan</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Surveys Tab -->
+    <div id="tab-surveys" class="tab-content">
+      <div class="card">
+        <div class="row">
+          <div>
+            <label>Ara</label>
+            <input id="q" placeholder="Ad, telefon, bölüm, doktor..." style="width:250px;" />
+          </div>
+          <div>
+            <label>Başlangıç</label>
+            <input id="from" type="date" />
+          </div>
+          <div>
+            <label>Bitiş</label>
+            <input id="to" type="date" />
+          </div>
+          <div>
+            <label>Durum</label>
+            <select id="status">
+              <option value="">Hepsi</option>
+              <option value="pending">Beklemede</option>
+              <option value="completed">Tamamlandı</option>
+              <option value="promoted">Yönlendirildi</option>
+            </select>
+          </div>
+          <div style="display:flex; gap:8px; align-items:end;">
+            <button onclick="loadSurveys()">🔍 Filtrele</button>
+            <button class="btn-secondary" onclick="exportCSV()">📥 CSV İndir</button>
+          </div>
+        </div>
+
+        <div style="color:var(--muted); font-size:13px; margin-bottom:12px;">
+          Toplam: <strong id="survey-total">0</strong> anket
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Tarih</th><th>Ad Soyad</th><th>Telefon</th>
+                <th>Bölüm</th><th>Doktor</th><th>Genel</th>
+                <th>Bekl.</th><th>Dokt.</th><th>Ekip</th><th>Banko</th><th>Serv.</th><th>Temiz.</th>
+                <th>NPS</th><th>Yorum</th><th>Durum</th>
+              </tr>
+            </thead>
+            <tbody id="survey-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics Tab -->
+    <div id="tab-analytics" class="tab-content">
+      <div class="card">
+        <h2>📈 Detaylı Analitik Rapor</h2>
+        <div id="analytics-loading" class="loading">Yükleniyor...</div>
+        <div id="analytics-content" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentTab = 'overview';
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('tab-' + tab).classList.add('active');
+
+      if (tab === 'overview') loadOverview();
+      if (tab === 'surveys') loadSurveys();
+      if (tab === 'analytics') loadAnalytics();
+    }
+
+    function statusBadge(s) {
+      const map = { pending:'Beklemede', completed:'Tamamlandı', promoted:'Yönlendirildi' };
+      const cls = String(s||'').toLowerCase();
+      return `<span class="badge ${cls}">${map[cls]||s||''}</span>`;
+    }
+
+    async function loadOverview() {
+      try {
+        const res = await fetch('/admin/api/analytics');
+        const data = await res.json();
+
+        document.getElementById('m-total').textContent = data.overview.total_surveys || 0;
+        document.getElementById('m-avg').textContent = data.overview.avg_score?.toFixed(2) || '0.00';
+        document.getElementById('m-high').textContent = data.overview.high_score_rate + '%';
+        document.getElementById('m-conversion').textContent = data.overview.google_conversion_rate + '%';
+        document.getElementById('m-nps').textContent = data.overview.avg_nps?.toFixed(2) || '0.00';
+        
+        const completionRate = data.overview.total_surveys > 0
+          ? ((data.overview.completed / data.overview.total_surveys) * 100).toFixed(1)
+          : 0;
+        document.getElementById('m-completion').textContent = completionRate + '%';
+
+        // Trend chart (simple text for now)
+        const trendHTML = data.trends.map(t => 
+          `<div>${t.date}: ${t.count} anket, Ort: ${t.avg_score?.toFixed(1) || '-'}</div>`
+        ).join('');
+        document.getElementById('trend-chart').innerHTML = trendHTML || 'Veri yok';
+
+        // Department performance
+        const deptTbody = document.querySelector('#dept-performance tbody');
+        deptTbody.innerHTML = data.performance.byDepartment.map(d =>
+          `<tr><td>${d.name}</td><td>${d.survey_count}</td><td>${d.avg_score?.toFixed(2) || '-'}</td></tr>`
+        ).join('') || '<tr><td colspan="3" class="empty">Veri yok</td></tr>';
+
+        // Doctor performance
+        const docTbody = document.querySelector('#doctor-performance tbody');
+        docTbody.innerHTML = data.performance.byDoctor.map(d =>
+          `<tr><td>${d.name}</td><td>${d.survey_count}</td><td>${d.avg_score?.toFixed(2) || '-'}</td></tr>`
+        ).join('') || '<tr><td colspan="3" class="empty">Veri yok</td></tr>';
+
+      } catch (err) {
+        console.error('Failed to load overview:', err);
+      }
+    }
+
+    async function loadSurveys() {
+      const q = document.getElementById('q').value.trim();
+      const from = document.getElementById('from').value;
+      const to = document.getElementById('to').value;
+      const status = document.getElementById('status').value;
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      if (status) params.set('status', status);
+
+      try {
+        const res = await fetch('/admin/api/surveys?' + params.toString());
+        const data = await res.json();
+
+        document.getElementById('survey-total').textContent = data.total;
+        const tbody = document.getElementById('survey-tbody');
+        tbody.innerHTML = data.items.map(r => `
+          <tr>
+            <td><a href="/s/${r.SurveyId}" target="_blank">${r.SurveyId}</a></td>
+            <td>${r.Tarih||''}</td>
+            <td>${r.AdSoyad||''}</td>
+            <td>${r.Telefon||''}</td>
+            <td>${r.Bolum||''}</td>
+            <td>${r.Doktor||''}</td>
+            <td><strong>${r.Genel??'-'}</strong></td>
+            <td>${r.Bekleme??'-'}</td>
+            <td>${r.DoktorSkor??'-'}</td>
+            <td>${r.Ekip??'-'}</td>
+            <td>${r.Banko??'-'}</td>
+            <td>${r.Servis??'-'}</td>
+            <td>${r.Temizlik??'-'}</td>
+            <td>${r.Tavsiye??'-'}</td>
+            <td>${(r.Yorum||'').toString().slice(0,40)}</td>
+            <td>${statusBadge(r.Durum)}</td>
+          </tr>
+        `).join('') || '<tr><td colspan="16" class="empty">Veri bulunamadı</td></tr>';
+      } catch (err) {
+        console.error('Failed to load surveys:', err);
+      }
+    }
+
+    async function loadAnalytics() {
+      document.getElementById('analytics-loading').style.display = 'block';
+      document.getElementById('analytics-content').style.display = 'none';
+
+      try {
+        const res = await fetch('/admin/api/analytics');
+        const data = await res.json();
+
+        const html = `
+          <h3>Genel İstatistikler</h3>
+          <div class="metrics">
+            <div class="metric"><div class="label">Toplam Anket</div><div class="val">${data.overview.total_surveys}</div></div>
+            <div class="metric"><div class="label">Tamamlanan</div><div class="val">${data.overview.completed}</div></div>
+            <div class="metric"><div class="label">Yönlendirilen</div><div class="val">${data.overview.promoted}</div></div>
+            <div class="metric"><div class="label">Bekleyen</div><div class="val">${data.overview.pending}</div></div>
+          </div>
+
+          <h3>Puan Dağılımı</h3>
+          <div class="metrics">
+            <div class="metric"><div class="label">Ortalama Genel Puan</div><div class="val success">${data.overview.avg_score?.toFixed(2)}</div></div>
+            <div class="metric"><div class="label">Yüksek Puan (8+)</div><div class="val">${data.overview.high_scores}</div></div>
+            <div class="metric"><div class="label">Düşük Puan (≤4)</div><div class="val danger">${data.overview.low_scores}</div></div>
+            <div class="metric"><div class="label">Yüksek Puan Oranı</div><div class="val">${data.overview.high_score_rate}%</div></div>
+          </div>
+
+          <h3>Kategori Ortalamaları</h3>
+          <div class="metrics">
+            <div class="metric"><div class="label">Bekleme</div><div class="val">${data.overview.avg_wait?.toFixed(2) || '-'}</div></div>
+            <div class="metric"><div class="label">Doktor</div><div class="val">${data.overview.avg_doctor?.toFixed(2) || '-'}</div></div>
+            <div class="metric"><div class="label">Ekip</div><div class="val">${data.overview.avg_team?.toFixed(2) || '-'}</div></div>
+            <div class="metric"><div class="label">Banko</div><div class="val">${data.overview.avg_reception?.toFixed(2) || '-'}</div></div>
+            <div class="metric"><div class="label">Servis</div><div class="val">${data.overview.avg_service?.toFixed(2) || '-'}</div></div>
+            <div class="metric"><div class="label">Temizlik</div><div class="val">${data.overview.avg_cleanliness?.toFixed(2) || '-'}</div></div>
+          </div>
+
+          <h3>NPS & Engagement</h3>
+          <div class="metrics">
+            <div class="metric"><div class="label">Ortalama NPS</div><div class="val">${data.overview.avg_nps?.toFixed(2) || '-'}</div></div>
+            <div class="metric"><div class="label">NPS Kategori</div><div class="val">${data.overview.nps_category}</div></div>
+            <div class="metric"><div class="label">Yorum Yapan</div><div class="val">${data.overview.with_comments}</div></div>
+            <div class="metric"><div class="label">Google Tıklama</div><div class="val">${data.overview.google_clicks}</div></div>
+          </div>
+
+          <h3>Yanıt Oranları</h3>
+          <div class="metrics">
+            <div class="metric"><div class="label">Genel Puan</div><div class="val">${data.responseRates.score}%</div></div>
+            <div class="metric"><div class="label">Kategoriler</div><div class="val">${data.responseRates.categories}%</div></div>
+            <div class="metric"><div class="label">NPS</div><div class="val">${data.responseRates.nps}%</div></div>
+            <div class="metric"><div class="label">Yorum</div><div class="val">${data.responseRates.comments}%</div></div>
+          </div>
+        `;
+
+        document.getElementById('analytics-content').innerHTML = html;
+        document.getElementById('analytics-loading').style.display = 'none';
+        document.getElementById('analytics-content').style.display = 'block';
+      } catch (err) {
+        document.getElementById('analytics-loading').innerHTML = '<div class="empty">❌ Analitik yüklenemedi</div>';
+      }
+    }
+
+    function exportCSV() {
+      window.location.href = '/api/export/csv';
+    }
+
+    // Load overview on page load
+    loadOverview();
+  </script>
+</body>
+</html>

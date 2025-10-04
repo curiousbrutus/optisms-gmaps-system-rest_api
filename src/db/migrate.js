@@ -48,6 +48,11 @@ CREATE TABLE IF NOT EXISTS responses (
 
 CREATE INDEX IF NOT EXISTS idx_contacts_phone ON contacts(phone);
 CREATE INDEX IF NOT EXISTS idx_responses_survey ON responses(survey_id);
+CREATE INDEX IF NOT EXISTS idx_surveys_created_at ON surveys(created_at);
+CREATE INDEX IF NOT EXISTS idx_surveys_status ON surveys(status);
+CREATE INDEX IF NOT EXISTS idx_surveys_department ON surveys(department);
+CREATE INDEX IF NOT EXISTS idx_surveys_doctor ON surveys(doctor);
+CREATE INDEX IF NOT EXISTS idx_responses_step ON responses(step);
 `);
 
 // Idempotent ALTERs for existing DBs
