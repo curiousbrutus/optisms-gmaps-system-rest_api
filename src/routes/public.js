@@ -6,6 +6,11 @@ const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '../..');
 
+// Root redirect to admin panel
+router.get('/', (req, res) => {
+  res.redirect('/admin');
+});
+
 router.get('/health', (req, res) => {
   res.json({ ok: true, service: 'sms-review-flow', version: '2.0.0' });
 });

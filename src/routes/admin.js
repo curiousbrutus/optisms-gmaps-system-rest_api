@@ -9,7 +9,7 @@ const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '../..');
 
-// Admin panel (static HTML) - Enhanced v2.0
+// Admin panel (static HTML) - Enhanced v2.0 with Analytics
 router.get('/admin', adminBasicAuth, (req, res) => {
   res.sendFile(path.join(projectRoot, 'public', 'admin-v2.html'));
 });
